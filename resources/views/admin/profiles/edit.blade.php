@@ -14,8 +14,8 @@
                     <input type="text" name="name" class="form-control" required value="{{ old('name', $profile->name) }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">اسم الباقة في الراوتر</label>
-                    <input type="text" name="mikrotik_profile_name" class="form-control" required
+                    <label class="form-label">اسم الباقة في الراوتر (غير قابل للتعديل)</label>
+                    <input type="text" name="mikrotik_profile_name" class="form-control" readonly
                            value="{{ old('mikrotik_profile_name', $profile->mikrotik_profile_name) }}">
                 </div>
                 <div class="col-md-4">

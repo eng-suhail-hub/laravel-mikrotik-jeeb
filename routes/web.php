@@ -36,7 +36,8 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     });
 
     // إدارة الباقات
-    Route::resource('profiles', ProfileController::class)->except(['show']);
+    Route::post('profiles/sync', [ProfileController::class, 'syncFromMikrotik'])->name('profiles.sync');
+    Route::resource('profiles', ProfileController::class)->except(['show', 'create', 'store']);
 
     // إدارة العمليات
     Route::prefix('transactions')->name('transactions.')->group(function () {

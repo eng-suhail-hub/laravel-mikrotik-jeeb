@@ -8,25 +8,20 @@ use Illuminate\Support\Facades\Log;
 use RouterOS\Exceptions\ConnectException;
 use RouterOS\Exceptions\QueryException;
 use RouterOS\Client;
+use RouterOS\Query; // ⚠️ إضافة ضرورية جداً لكتابة أوامر الإضافة والتعديل
 use Throwable;
 
 /**
  * ════════════════════════════════════════════════════════════════
- *  كلاس خدمة المايكروتك (MikroTik Service)
+ * كلاس خدمة المايكروتك (MikroTik Service)
  * ════════════════════════════════════════════════════════════════
  *
- *  ⚠️ هذا الكلاس هو الجسر الوحيد بين Laravel والراوتر.
- *  مسؤولياته:
- *  1. فتح/إغلاق اتصال مع RouterOS v6 عبر منفذ 8728
- *  2. استخدام Laravel Cache::lock لمنع أكثر من اتصال متزامن
- *     (يقلل استهلاك المعالج على الراوتر PowerPC)
- *  3. تنفيذ الأوامر على User Manager فقط (ليس Hotspot)
- *  4. رمي استثناءات واضحة يمكن للـ Job التعامل معها
- *
- *  ⚠️ لا يستخدم RouterOS v7 REST API — غير متوافق مع v6.49.19
- *  ⚠️ يستخدم مكتبة routeros-api المتوافقة مع v6
- *
- *  ⚠️ هذا الكلاس منفصل تماماً عن WebhookParser (SoC).
+ * ⚠️ هذا الكلاس هو الجسر الوحيد بين Laravel والراوتر.
+ * مسؤولياته:
+ * 1. فتح/إغلاق اتصال مع RouterOS v6 عبر منفذ 8728
+ * 2. استخدام Laravel Cache::lock لمنع أكثر من اتصال متزامن
+ * 3. تنفيذ الأوامر على User Manager فقط (ليس Hotspot)
+ * 4. رمي استثناءات واضحة يمكن للـ Job التعامل معها
  */
 class MikroTikService
 {
@@ -52,15 +47,11 @@ class MikroTikService
             );
         }
 
-        // ⚠️ استخدام Laravel Cache Lock لمنع أكثر من اتصال متزامن
-        // مفتاح القفل مأخوذ من config (يمكن تغييره لـ environment مختلف)
         $lockKey = config('mikrotik.queue_lock_key', 'mikrotik_connection_lock');
         $lockTtl = config('mikrotik.queue_lock_ttl', 30);
 
         $lock = Cache::lock($lockKey, $lockTtl);
 
-        // block: false = لا تنتظر، إذا كان مقفلاً ارمِ استثناء
-        // (يمنع تراكم الاتصالات عند انقطاع الراوتر)
         $this->lockAcquired = $lock->get();
 
         if (!$this->lockAcquired) {
@@ -76,12 +67,11 @@ class MikroTikService
                 'user' => $setting->username,
                 'pass' => $setting->password,
                 'timeout' => (int) config('mikrotik.connection_timeout', 10),
+                'legacy' => false, // v6.49 يستخدم المصادقة الحديثة (post-6.43)
             ]);
 
-            // اختبار الاتصال بأمر بسيط
-            $this->client->query('/system/identity/print');
+            $this->client->query('/system/identity/print')->read();
 
-            // تحديث حالة الاتصال في قاعدة البيانات
             $setting->update([
                 'is_connected' => true,
                 'last_test_at' => now(),
@@ -112,7 +102,6 @@ class MikroTikService
      */
     public function disconnect(): void
     {
-        // Client في routeros-api لا يحتاج close() صريح — يُغلق عند unset
         $this->client = null;
         $this->releaseLock();
     }
@@ -126,19 +115,14 @@ class MikroTikService
             try {
                 Cache::lock(config('mikrotik.queue_lock_key', 'mikrotik_connection_lock'))->release();
             } catch (Throwable $e) {
-                // تجاهل أخطاء التحرير (قد يكون المفتاح انتهت صلاحيته)
+                // تجاهل أخطاء التحرير
             }
             $this->lockAcquired = false;
         }
     }
 
     /**
-     * ⚠️ حسب المواصفات: إنشاء مستخدم في User Manager فقط
-     *
-     * @param string $username اسم المستخدم
-     * @param string $password كلمة المرور
-     * @param string $mikrotikProfileName اسم الباقة في User Manager
-     * @return bool نجاح العملية
+     * إنشاء مستخدم وربطه بالباقة في User Manager
      */
     public function createUserManagerUser(
         string $username,
@@ -150,26 +134,23 @@ class MikroTikService
         }
 
         try {
-            // ⚠️ المسار الصحيح: /tool/user-manager/user/add
-            // ليس /ip/hotspot/user/add (Hotspot ممنوح حسب المواصفات)
-            $this->client->query(
-                config('mikrotik.user_manager_add_path', '/tool/user-manager/user/add'),
-                [
-                    'name' => $username,
-                    'password' => $password,
-                    'customer' => 'admin',
-                ]
-            )->read();
+            // ⚠️ التصحيح 1: استخدام RouterOS\Query لعمليات الـ Add لإرسال المعاملات بعلامة (=)
+            $addPath = config('mikrotik.user_manager_add_path', '/tool/user-manager/user/add');
+            
+            $addQuery = (new Query($addPath))
+                ->equal('customer', 'admin')
+                ->equal('name', $username)
+                ->equal('password', $password);
 
-            // ربط المستخدم بالـ Profile في User Manager
-            // المُعرّف يتم جلبه تلقائياً في أمر set عبر name
-            $this->client->query(
-                '/tool/user-manager/user/profile/set',
-                [
-                    'user' => $username,
-                    'profile' => $mikrotikProfileName,
-                ]
-            )->read();
+            $this->client->query($addQuery)->read();
+
+            // ⚠️ التصحيح 2: في User Manager v6، المعامل الصحيح هو "numbers" وليس "user" لتحديد الحساب
+            $profileQuery = (new Query('/tool/user-manager/user/create-and-use-profile'))
+                ->equal('customer', 'admin')
+                ->equal('numbers', $username)
+                ->equal('profile', $mikrotikProfileName);
+
+            $this->client->query($profileQuery)->read();
 
             Log::info('User Manager user created', [
                 'username' => $username,
@@ -179,7 +160,6 @@ class MikroTikService
             return true;
 
         } catch (QueryException $e) {
-            // إذا كان المستخدم موجوداً مسبقاً (نفس الاسم)، هذا خطأ متوقع
             if (str_contains($e->getMessage(), 'already have')) {
                 Log::warning('User already exists in User Manager', [
                     'username' => $username,
@@ -191,13 +171,7 @@ class MikroTikService
     }
 
     /**
-     * اختبار الاتصال (يُستخدم من لوحة الأدمن قبل الحفظ)
-     *
-     * @param string $host
-     * @param int $port
-     * @param string $username
-     * @param string $password
-     * @return array ['success' => bool, 'info' => array, 'error' => string|null]
+     * اختبار الاتصال
      */
     public function testConnection(
         string $host,
@@ -214,7 +188,6 @@ class MikroTikService
                 'timeout' => (int) config('mikrotik.connection_timeout', 10),
             ]);
 
-            // جلب هوية الراوتر + إصدار النظام + اسم اللوحة
             $identityResponse = $client->query('/system/identity/print')->read();
             $resourceResponse = $client->query('/system/resource/print')->read();
 
@@ -241,9 +214,6 @@ class MikroTikService
         }
     }
 
-    /**
-     * ترجمة رسائل خطأ MikroTik للعربية (للعرض في الواجهة)
-     */
     private function translateError(string $message): string
     {
         return match (true) {
@@ -251,13 +221,131 @@ class MikroTikService
             str_contains($message, 'timeout')            => 'انتهت مهلة الاتصال. الراوتر لا يستجيب.',
             str_contains($message, 'Authentication')     => 'بيانات الدخول (اسم المستخدم/كلمة المرور) غير صحيحة.',
             str_contains($message, 'Could not resolve')  => 'تعذّر الوصول لعنوان IP الراوتر.',
-            default                                       => 'خطأ غير متوقع: ' . $message,
+            default                                      => 'خطأ غير متوقع: ' . $message,
         };
     }
 
     /**
-     * التأكد من تحرير الموارد عند تدمير الكلاس
+     * جلب الباقات من User Manager
      */
+    public function getUserManagerProfiles(): array
+    {
+        if ($this->client === null) {
+            $this->connect();
+        }
+
+        try {
+            // دوال الـ Print لا تحتاج لمعاملات Query، النص المباشر يعمل بشكل ممتاز
+            $profiles = $this->client->query('/tool/user-manager/profile/print')->read();
+            $profileLimitations = $this->client->query('/tool/user-manager/profile/profile-limitation/print')->read();
+            $limitations = $this->client->query('/tool/user-manager/limitation/print')->read();
+
+            $limitationsByName = [];
+            foreach ($limitations as $limitation) {
+                if (isset($limitation['name'])) {
+                    $limitationsByName[$limitation['name']] = $limitation;
+                }
+            }
+
+            $profileLimitationMap = [];
+            foreach ($profileLimitations as $pl) {
+                if (isset($pl['profile']) && isset($pl['limitation'])) {
+                    $profileLimitationMap[$pl['profile']][] = $pl['limitation'];
+                }
+            }
+
+            $result = [];
+            foreach ($profiles as $profile) {
+                if (!isset($profile['name'])) continue;
+
+                $name = $profile['name'];
+                $price = isset($profile['price']) ? (float)$profile['price'] : 0.0;
+                $validity = $profile['validity'] ?? '1d';
+
+                $speedLimits = [];
+                $uptimeLimit = '';
+
+                if (isset($profileLimitationMap[$name]) && count($profileLimitationMap[$name]) > 0) {
+                    foreach ($profileLimitationMap[$name] as $limitationName) {
+                        if (isset($limitationsByName[$limitationName])) {
+                            $limInfo = $limitationsByName[$limitationName];
+                            
+                            if (empty($uptimeLimit) && !empty($limInfo['uptime-limit'])) {
+                                $uptimeLimit = $limInfo['uptime-limit'];
+                            }
+
+                            $rx = $limInfo['rate-limit-rx'] ?? '';
+                            $tx = $limInfo['rate-limit-tx'] ?? '';
+                            
+                            $rxFormatted = $this->formatBytesToMbps($rx);
+                            $txFormatted = $this->formatBytesToMbps($tx);
+                            
+                            $limitStr = '';
+                            if ($rxFormatted && $txFormatted) {
+                                $limitStr = "{$rxFormatted}/{$txFormatted}";
+                            } elseif ($rxFormatted) {
+                                $limitStr = $rxFormatted;
+                            }
+                            
+                            if ($limitStr && !in_array($limitStr, $speedLimits)) {
+                                $speedLimits[] = $limitStr;
+                            }
+                        }
+                    }
+                }
+
+                if (empty($validity)) {
+                    $validity = $uptimeLimit; 
+                }
+
+                $speedLimitStr = !empty($speedLimits) ? implode(' | ', $speedLimits) : null;
+                if ($speedLimitStr && mb_strlen($speedLimitStr) > 50) {
+                    $speedLimitStr = mb_substr($speedLimitStr, 0, 47) . '...';
+                }
+
+                $result[] = [
+                    'name' => $name,
+                    'price' => $price,
+                    'validity' => $validity,
+                    'speed_limit' => $speedLimitStr,
+                ];
+            }
+
+            return $result;
+
+        } catch (QueryException $e) {
+            Log::error('MikroTik failed to fetch User Manager profiles', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
+     * ⚠️ التصحيح 3: دعم الأرقام الصافية (بدون حرف B) التي يُرجعها الـ API
+     */
+    private function formatBytesToMbps(string $value): string
+    {
+        if (empty($value)) return '';
+        $value = strtoupper(trim($value));
+        
+        // إزالة الحرف B إن وُجد
+        if (str_ends_with($value, 'B')) {
+            $value = substr($value, 0, -1);
+        }
+
+        // تحويل الرقم إلى M أو K بناءً على الحجم
+        if (is_numeric($value)) {
+            $bytes = (float) $value;
+            if ($bytes >= 1048576) {
+                return round($bytes / 1048576) . 'M';
+            } elseif ($bytes >= 1024) {
+                return round($bytes / 1024) . 'K';
+            }
+            return $bytes . 'B';
+        }
+
+        return $value; // إعادة القيمة كما هي إذا كانت نصية
+    }
+
     public function __destruct()
     {
         $this->disconnect();

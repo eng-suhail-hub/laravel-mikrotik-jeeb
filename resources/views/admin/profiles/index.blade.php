@@ -4,9 +4,12 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-tags"></i> إدارة الباقات</h2>
-    <a href="{{ route('admin.profiles.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> باقة جديدة
-    </a>
+    <form action="{{ route('admin.profiles.sync') }}" method="POST" class="d-inline">
+        @csrf
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-arrow-repeat"></i> مزامنة الباقات من المايكروتك
+        </button>
+    </form>
 </div>
 
 <div class="card">
@@ -31,7 +34,7 @@
                             <td><strong>{{ $profile->name }}</strong></td>
                             <td><code>{{ $profile->mikrotik_profile_name }}</code></td>
                             <td>{{ number_format($profile->price, 2) }}</td>
-                            <td>{{ $profile->duration_hours }} ساعة</td>
+                            <td><span class="badge bg-info text-dark">{{ $profile->formatted_validity }}</span></td>
                             <td>
                                 @if($profile->is_active)
                                     <span class="badge bg-success">نشطة</span>

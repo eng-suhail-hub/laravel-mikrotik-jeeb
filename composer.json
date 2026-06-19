@@ -2,15 +2,23 @@
     "name": "jeeb/mikrotik-card-system",
     "type": "project",
     "description": "Laravel backend system for automating MikroTik v6 User Manager card generation via Jeeb wallet integration.",
-    "keywords": ["laravel", "mikrotik", "routeros", "v6", "user-manager", "jeeb", "webhook"],
+    "keywords": [
+        "laravel",
+        "mikrotik",
+        "routeros",
+        "v6",
+        "user-manager",
+        "jeeb",
+        "webhook"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.2",
         "guzzlehttp/guzzle": "^7.8",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
-        "routeros/routeros-api": "^1.0"
+        "evilfreelancer/routeros-api-php": "^1.7.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

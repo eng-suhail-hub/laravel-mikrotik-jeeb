@@ -43,6 +43,28 @@ class Profile extends Model
     }
 
     /**
+     * تنسيق مدة الباقة لصيغة مايكروتك (مثلاً: 2w4d)
+     */
+    public function getFormattedValidityAttribute()
+    {
+        $hours = $this->duration_hours;
+        
+        if (empty($hours)) return 'Unlimited';
+        
+        $w = floor($hours / 168);
+        $rem = $hours % 168;
+        $d = floor($rem / 24);
+        $h = $rem % 24;
+        
+        $str = '';
+        if ($w > 0) $str .= $w . 'w';
+        if ($d > 0) $str .= $d . 'd';
+        if ($h > 0) $str .= $h . 'h';
+        
+        return $str !== '' ? $str : '0s';
+    }
+
+    /**
      * كل العمليات التي استخدمت هذه الباقة
      */
     public function transactions(): HasMany
