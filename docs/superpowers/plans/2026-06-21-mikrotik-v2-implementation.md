@@ -977,9 +977,62 @@ class PointsController extends Controller
 
 **File:** `resources/views/admin/points/transactions.blade.php`
 
-- [ ] **Write the view (list all transactions with filters)**
+- [ ] **Write the view**
 
-Simple table view with search and type filter, showing: user, type badge, amount, balance_before/after, reason, created_at.
+```blade
+@extends('admin.layouts.app')
+
+@section('content')
+<div class="container">
+    <h1>حركات النقاط</h1>
+
+    <form method="GET" class="row mb-3">
+        <div class="col-md-4">
+            <input type="text" name="search" class="form-control" placeholder="بحث باسم المستخدم أو الهاتف" value="{{ request('search') }}">
+        </div>
+        <div class="col-md-2">
+            <select name="type" class="form-select">
+                <option value="">الكل</option>
+                <option value="credit" {{ request('type') === 'credit' ? 'selected' : '' }}>إيداع</option>
+                <option value="debit" {{ request('type') === 'debit' ? 'selected' : '' }}>خصم</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">بحث</button>
+        </div>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>المستخدم</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>الرصيد قبل</th>
+                <th>الرصيد بعد</th>
+                <th>السبب</th>
+                <th>التاريخ</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($transactions as $tx)
+            <tr>
+                <td>{{ $tx->user->full_name ?? '—' }}<br><small>{{ $tx->user->phone ?? '' }}</small></td>
+                <td><span class="badge bg-{{ $tx->type === 'credit' ? 'success' : 'danger' }}">{{ $tx->type === 'credit' ? 'إيداع' : 'خصم' }}</span></td>
+                <td>{{ number_format($tx->amount, 2) }}</td>
+                <td>{{ number_format($tx->balance_before, 2) }}</td>
+                <td>{{ number_format($tx->balance_after, 2) }}</td>
+                <td>{{ $tx->reason }}</td>
+                <td>{{ $tx->created_at }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{ $transactions->links() }}
+</div>
+@endsection
+```
 
 ### Task B10: Commit Phase B
 
@@ -1938,11 +1991,52 @@ class ChallengeController extends Controller
 
     public function update(Request $request, Challenge $challenge)
     {
-        // Same validation as store
-        $challenge->update([...]);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'is_active' => 'boolean',
+            'starts_at' => 'nullable|date',
+            'ends_at' => 'nullable|date|after:starts_at',
+            'max_completions' => 'integer|min:0',
+            'conditions' => 'required|array|min:1',
+            'conditions.*.condition_type' => 'required|string',
+            'conditions.*.operator' => 'required|string',
+            'conditions.*.value' => 'required|json',
+            'conditions.*.logic_group' => 'integer',
+            'rewards' => 'required|array|min:1',
+            'rewards.*.reward_type' => 'required|string',
+            'rewards.*.value' => 'required|json',
+            'rewards.*.priority' => 'integer',
+        ]);
+
+        $challenge->update([
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'is_active' => $request->boolean('is_active'),
+            'starts_at' => $data['starts_at'] ?? null,
+            'ends_at' => $data['ends_at'] ?? null,
+            'max_completions' => $data['max_completions'] ?? 0,
+        ]);
+
         $challenge->conditions()->delete();
         $challenge->rewards()->delete();
-        // Re-create conditions and rewards
+
+        foreach ($data['conditions'] as $cond) {
+            $challenge->conditions()->create([
+                'condition_type' => $cond['condition_type'],
+                'operator' => $cond['operator'],
+                'value' => json_decode($cond['value'], true),
+                'logic_group' => $cond['logic_group'] ?? 0,
+            ]);
+        }
+
+        foreach ($data['rewards'] as $reward) {
+            $challenge->rewards()->create([
+                'reward_type' => $reward['reward_type'],
+                'value' => json_decode($reward['value'], true),
+                'priority' => $reward['priority'] ?? 0,
+            ]);
+        }
 
         return redirect()->route('admin.challenges.index')
             ->with('success', 'تم تحديث التحدي بنجاح.');
@@ -2159,15 +2253,203 @@ class GenerateMikrotikCardBatchJob implements ShouldQueue
 }
 ```
 
-### Task E4: Create BatchGeneration, MaintenanceLog models
+### Task E4: Create BatchGeneration, MaintenanceLog, VoucherTheme models
 
-- [ ] **Create models** at `app/Models/BatchGeneration.php` and `app/Models/MaintenanceLog.php` with standard relations
+- [ ] **Create `app/Models/BatchGeneration.php`**
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class BatchGeneration extends Model
+{
+    protected $table = 'batch_generations';
+
+    protected $fillable = ['admin_id', 'profile_id', 'quantity', 'generated_count', 'status', 'generation_config'];
+
+    protected $casts = [
+        'quantity' => 'integer',
+        'generated_count' => 'integer',
+        'generation_config' => 'array',
+    ];
+
+    public function admin(): BelongsTo { return $this->belongsTo(Admin::class); }
+    public function profile(): BelongsTo { return $this->belongsTo(Profile::class); }
+}
+```
+
+- [ ] **Create `app/Models/MaintenanceLog.php`**
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class MaintenanceLog extends Model
+{
+    protected $table = 'maintenance_logs';
+
+    protected $fillable = ['admin_id', 'action', 'status', 'raw_output'];
+
+    public function admin(): BelongsTo { return $this->belongsTo(Admin::class); }
+}
+```
+
+- [ ] **Create `app/Models/VoucherTheme.php`**
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class VoucherTheme extends Model
+{
+    protected $table = 'voucher_themes';
+
+    protected $fillable = ['name', 'blade_view', 'thumbnail', 'is_default'];
+
+    protected $casts = ['is_default' => 'boolean'];
+}
+```
 
 ### Task E5: Create admin controllers
 
-- [ ] **BatchGenerationController** — list past batches, generate new batch
-- [ ] **MaintenanceController** — list maintenance actions, execute new action
-- [ ] **VoucherController** — select theme, preview, render printable view
+- [ ] **Create `app/Http/Controllers/Admin/BatchGenerationController.php`**
+```php
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Jobs\GenerateMikrotikCardBatchJob;
+use App\Models\BatchGeneration;
+use App\Models\Profile;
+use Illuminate\Http\Request;
+
+class BatchGenerationController extends Controller
+{
+    public function index()
+    {
+        $batches = BatchGeneration::with(['admin', 'profile'])->latest()->paginate(20);
+        $profiles = Profile::active()->get();
+        return view('admin.batch_generations.index', compact('batches', 'profiles'));
+    }
+
+    public function generate(Request $request)
+    {
+        $data = $request->validate([
+            'profile_id' => 'required|exists:profiles,id',
+            'quantity' => 'required|integer|min:1|max:1000',
+            'credential_mode' => 'nullable|in:match,separate',
+            'username_length' => 'nullable|integer|min:6|max:32',
+            'password_length' => 'nullable|integer|min:6|max:32',
+            'username_prefix' => 'nullable|string|max:10',
+        ]);
+
+        $batch = BatchGeneration::create([
+            'admin_id' => auth('admin')->id(),
+            'profile_id' => $data['profile_id'],
+            'quantity' => $data['quantity'],
+            'generation_config' => [
+                'credential_mode' => $data['credential_mode'] ?? 'match',
+                'username_length' => (int) ($data['username_length'] ?? 10),
+                'password_length' => (int) ($data['password_length'] ?? 10),
+                'username_prefix' => $data['username_prefix'] ?? '',
+            ],
+        ]);
+
+        GenerateMikrotikCardBatchJob::dispatch($batch->id)->onQueue('cards');
+
+        return back()->with('success', "تم إرسال مهمة توليد {$data['quantity']} بطاقة إلى قائمة الانتظار.");
+    }
+
+    public function progress(int $id)
+    {
+        $batch = BatchGeneration::findOrFail($id);
+        return response()->json(['id' => $batch->id, 'status' => $batch->status, 'generated' => $batch->generated_count, 'total' => $batch->quantity]);
+    }
+}
+```
+
+- [ ] **Create `app/Http/Controllers/Admin/MaintenanceController.php`**
+```php
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\MaintenanceLog;
+use App\Services\MikroTikMaintenanceService;
+
+class MaintenanceController extends Controller
+{
+    public function __construct(private MikroTikMaintenanceService $maintenance) {}
+
+    public function index()
+    {
+        $logs = MaintenanceLog::with('admin')->latest()->paginate(20);
+        return view('admin.maintenance.index', compact('logs'));
+    }
+
+    public function execute(string $action, MikroTikMaintenanceService $maintenance)
+    {
+        $valid = ['backup_db', 'clear_logs', 'rebuild_db'];
+        if (!in_array($action, $valid)) {
+            return back()->withErrors(['error' => 'إجراء غير معروف.']);
+        }
+
+        $log = $maintenance->execute($action, auth('admin')->user());
+        $msg = $log->status === 'success' ? 'تم تنفيذ الإجراء بنجاح.' : 'فشل تنفيذ الإجراء.';
+        return back()->with($log->status === 'success' ? 'success' : 'error', $msg);
+    }
+}
+```
+
+- [ ] **Create `app/Http/Controllers/Admin/VoucherController.php`**
+```php
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\VoucherTheme;
+use App\Models\Transaction;
+use Illuminate\Http\Request;
+
+class VoucherController extends Controller
+{
+    public function index()
+    {
+        $themes = VoucherTheme::all();
+        return view('admin.vouchers.index', compact('themes'));
+    }
+
+    public function preview(Request $request)
+    {
+        $theme = VoucherTheme::findOrFail($request->theme_id);
+        $cards = Transaction::whereIn('id', $request->transaction_ids ?? [])
+            ->whereNotNull('mikrotik_username')
+            ->get()->map(fn($t) => [
+                'username' => $t->mikrotik_username,
+                'password' => $t->mikrotik_password,
+                'profile' => $t->profile?->name,
+            ]);
+
+        return view($theme->blade_view, compact('cards'));
+    }
+
+    public function print(Request $request)
+    {
+        // Same logic as preview but with print-specific layout
+    }
+}
+```
 
 ### Task E6: Create voucher print themes
 
@@ -2239,9 +2521,43 @@ git commit -m "feat(v2): implement User Manager Module - batch gen, vouchers, ma
 
 **File:** `app/Http/Controllers/Admin/SystemSettingController.php`
 
-- [ ] **Write controller with index and update methods**
-- Reads all settings, displays in editable form
-- `update()` updates each setting by key
+- [ ] **Write the controller**
+
+```php
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\SystemSetting;
+use Illuminate\Http\Request;
+
+class SystemSettingController extends Controller
+{
+    public function index()
+    {
+        $settings = SystemSetting::orderBy('key')->get();
+        return view('admin.settings.index', compact('settings'));
+    }
+
+    public function update(Request $request)
+    {
+        $keys = SystemSetting::pluck('key')->toArray();
+        $rules = [];
+        foreach ($keys as $key) {
+            $rules["settings.$key"] = 'nullable|string';
+        }
+
+        $data = $request->validate($rules);
+
+        foreach ($data['settings'] ?? [] as $key => $value) {
+            SystemSetting::setValue($key, $value ?? '');
+        }
+
+        return back()->with('success', 'تم حفظ الإعدادات بنجاح.');
+    }
+}
+```
 
 ### Task F2: Add middleware to block banned users
 
@@ -2277,7 +2593,12 @@ class CheckBanned
 
 Register in `bootstrap/app.php`: `$middleware->alias(['check.banned' => \App\Http\Middleware\CheckBanned::class]);`
 
-Apply to V2 API routes.
+Apply to V2 API routes by updating `routes/api.php`:
+```php
+Route::prefix('v2')->name('api.v2.')->middleware(['check.banned'])->group(function () {
+    // ... existing v2 routes ...
+});
+```
 
 ### Task F3: Seed voucher themes
 
@@ -2294,10 +2615,17 @@ Apply to V2 API routes.
 );
 ```
 
-### Task F4: Final review and migration
+### Task F4: Create settings admin view
 
-- [ ] **Run all pending migrations**
-- [ ] **Confirm all routes work**
+**File:** `resources/views/admin/settings/index.blade.php`
+
+- [ ] **Write the view** — Lists all settings in an editable form with key as label and text input for value.
+
+### Task F5: Final review and migration
+
+- [ ] **Run all pending migrations** (`php artisan migrate`)
+- [ ] **Run all seeders** (`php artisan db:seed --class=SystemSettingSeeder`)
+- [ ] **Confirm all routes work** (`php artisan route:list`)
 - [ ] **Run final commit**
 
 ```bash
@@ -2350,4 +2678,42 @@ git commit -m "feat(v2): final integration - ban middleware, settings, seeders"
 ### Modern theme
 **File:** `resources/views/admin/vouchers/themes/modern.blade.php`
 
-Same structure but with gradient borders, rounded corners, and cleaner typography.
+```blade
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>قسائم الإنترنت - مودرن</title>
+    <style>
+        @page { margin: 0.5cm; }
+        body { font-family: 'DejaVu Sans', sans-serif; background: #f5f5f5; }
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; padding: 15px; margin: 8px; width: 220px;
+            display: inline-block; text-align: center; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .card h3 { margin: 0 0 10px; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 8px; }
+        .card .label { font-size: 10px; opacity: 0.8; }
+        .card .cred { font-size: 20px; font-weight: bold; letter-spacing: 3px; margin: 2px 0 8px; word-break: break-all; }
+        .card .profile { font-size: 11px; opacity: 0.9; margin-top: 5px; }
+        .watermark { font-size: 40px; opacity: 0.05; position: absolute; }
+    </style>
+</head>
+<body>
+    @foreach($cards as $card)
+    <div class="card">
+        <h3>{{ $network_name ?? 'شبكتي' }}</h3>
+        <div class="label">اسم المستخدم</div>
+        <div class="cred">{{ $card['username'] }}</div>
+        <div class="label">كلمة المرور</div>
+        <div class="cred">{{ $card['password'] }}</div>
+        <div class="profile">{{ $card['profile'] }}</div>
+        @if(!empty($card['expires_at']))
+        <div class="profile">صالح حتى: {{ $card['expires_at'] }}</div>
+        @endif
+    </div>
+    @endforeach
+</body>
+</html>
+```
