@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * ════════════════════════════════════════════════════════════════
@@ -25,6 +26,15 @@ class User extends Model
         'full_name',
         'phone',
         'device_token',
+        'device_uuid',
+        'is_banned',
+        'banned_at',
+        'ban_reason',
+    ];
+
+    protected $casts = [
+        'is_banned' => 'boolean',
+        'banned_at' => 'datetime',
     ];
 
     /**
@@ -44,12 +54,12 @@ class User extends Model
 
         // إذا بدأ بـ 7 بدون رمز دولة، أضف 967
         if (preg_match('/^7\d{8}$/', $clean)) {
-            $clean = '967' . $clean;
+            $clean = '967'.$clean;
         }
 
         // إذا بدأ بـ 0، أزل الصفر وأضف 967
         if (preg_match('/^07\d{8}$/', $clean)) {
-            $clean = '967' . substr($clean, 1);
+            $clean = '967'.substr($clean, 1);
         }
 
         $this->attributes['phone'] = $clean;
@@ -71,5 +81,25 @@ class User extends Model
         return self::where('full_name', $fullName)
             ->where('phone', $phone)
             ->first();
+    }
+
+    public function pointsBalance(): HasOne
+    {
+        return $this->hasOne(PointsBalance::class);
+    }
+
+    public function pointsTransactions(): HasMany
+    {
+        return $this->hasMany(PointsTransaction::class);
+    }
+
+    public function scopeNotBanned($query)
+    {
+        return $query->where('is_banned', false);
+    }
+
+    public function scopeBanned($query)
+    {
+        return $query->where('is_banned', true);
     }
 }
