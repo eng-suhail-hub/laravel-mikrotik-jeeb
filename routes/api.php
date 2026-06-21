@@ -44,4 +44,5 @@ Route::prefix('v2')->name('api.v2.')->middleware(['check.banned'])->group(functi
     Route::post('/verify-transaction', [V2Controller::class, 'verifyTransaction'])->name('verify');
     Route::get('/network-status', [V2Controller::class, 'networkStatus'])->name('status');
     Route::get('/app-config', [V2Controller::class, 'appConfig'])->name('config');
+    Route::get('/challenges', [V2Controller::class, 'challenges'])->name('challenges');
 });

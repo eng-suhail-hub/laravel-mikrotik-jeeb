@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Listeners\CheckChallenges;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,6 +15,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // ⚠️ لا توجد إعدادات boot خاصة — الـ Services تُسجل تلقائياً
+        Event::subscribe(CheckChallenges::class);
     }
 }

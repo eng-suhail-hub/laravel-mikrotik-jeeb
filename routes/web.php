@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\ChallengeController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RouterController;
@@ -38,6 +39,9 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     // إدارة الباقات
     Route::post('profiles/sync', [ProfileController::class, 'syncFromMikrotik'])->name('profiles.sync');
     Route::resource('profiles', ProfileController::class)->except(['show', 'create', 'store']);
+
+    // إدارة التحديات
+    Route::resource('challenges', ChallengeController::class)->except(['show']);
 
     // إدارة العمليات
     Route::prefix('transactions')->name('transactions.')->group(function () {
