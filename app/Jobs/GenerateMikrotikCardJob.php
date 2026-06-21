@@ -34,29 +34,16 @@ class GenerateMikrotikCardJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * اسم الطابور (يجب أن يتطابق مع إعدادات الـ worker)
-     */
-    public string $queue = 'cards';
-
-    /**
-     * عدد المحاولات قبل اعتبار العملية فاشلة نهائياً
-     */
     public int $tries = 3;
 
-    /**
-     * مهلة تنفيذ الوظيفة بالثواني
-     */
     public int $timeout = 60;
 
-    /**
-     * @param  int  $transactionId  معرّف العملية في جدول transactions
-     * @param  array|null  $generationConfig  إعدادات التوليد الاختيارية
-     */
     public function __construct(
         public int $transactionId,
         public ?array $generationConfig = null
-    ) {}
+    ) {
+        $this->onQueue('cards');
+    }
 
     /**
      * حساب وقت الانتظار قبل إعادة المحاولة (بالثواني)

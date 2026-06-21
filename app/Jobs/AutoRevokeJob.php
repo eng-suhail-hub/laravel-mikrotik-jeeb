@@ -18,11 +18,12 @@ class AutoRevokeJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public string $queue = 'cards';
-
     public int $tries = 3;
 
-    public function __construct(public int $transactionId) {}
+    public function __construct(public int $transactionId)
+    {
+        $this->onQueue('cards');
+    }
 
     public function handle(MikroTikService $mikroTik, PointsService $pointsService): void
     {

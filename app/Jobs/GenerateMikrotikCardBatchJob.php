@@ -14,11 +14,12 @@ class GenerateMikrotikCardBatchJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public string $queue = 'cards';
-
     public int $timeout = 600;
 
-    public function __construct(public int $batchId) {}
+    public function __construct(public int $batchId)
+    {
+        $this->onQueue('cards');
+    }
 
     public function handle(): void
     {
