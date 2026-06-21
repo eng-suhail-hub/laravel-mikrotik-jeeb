@@ -50,11 +50,13 @@ class GenerateMikrotikCardJob implements ShouldQueue
     public int $timeout = 60;
 
     /**
-     * @param int $transactionId معرّف العملية في جدول transactions
+     * @param  int  $transactionId  معرّف العملية في جدول transactions
+     * @param  array|null  $generationConfig  إعدادات التوليد الاختيارية
      */
-    public function __construct(public int $transactionId)
-    {
-    }
+    public function __construct(
+        public int $transactionId,
+        public ?array $generationConfig = null
+    ) {}
 
     /**
      * حساب وقت الانتظار قبل إعادة المحاولة (بالثواني)
@@ -74,10 +76,11 @@ class GenerateMikrotikCardJob implements ShouldQueue
     {
         $transaction = Transaction::find($this->transactionId);
 
-        if (!$transaction) {
+        if (! $transaction) {
             Log::error('GenerateMikrotikCardJob: Transaction not found', [
                 'id' => $this->transactionId,
             ]);
+
             return;
         }
 
@@ -86,6 +89,7 @@ class GenerateMikrotikCardJob implements ShouldQueue
             Log::info('GenerateMikrotikCardJob: Already completed', [
                 'id' => $this->transactionId,
             ]);
+
             return;
         }
 
@@ -97,7 +101,11 @@ class GenerateMikrotikCardJob implements ShouldQueue
             'attempt' => $this->attempts(),
         ]);
 
-        $generator->generate($transaction);
+        if ($this->generationConfig) {
+            $generator->generate($transaction, $this->generationConfig);
+        } else {
+            $generator->generate($transaction);
+        }
     }
 
     /**
@@ -110,7 +118,7 @@ class GenerateMikrotikCardJob implements ShouldQueue
         if ($transaction) {
             $transaction->update([
                 'status' => Transaction::STATUS_FAILED,
-                'failure_reason' => 'فشل نهائي بعد ' . $this->tries . ' محاولات: ' . $exception->getMessage(),
+                'failure_reason' => 'فشل نهائي بعد '.$this->tries.' محاولات: '.$exception->getMessage(),
             ]);
         }
 

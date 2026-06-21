@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\V2Controller;
 use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +35,13 @@ Route::middleware('localhost.only')->group(function () {
 
 // ⚠️ ملاحظة: المسار /api/webhook/jeeb يجب أن يكون مُعداً في الـ Emulator
 // مع الـ Header: X-Jeeb-Secret: <your-secret-key>
+
+// ════════════════════════════════════════════════════════════════
+// نقاط نهاية V2 (Instant Delivery + نقاط + تحديات)
+// ════════════════════════════════════════════════════════════════
+
+Route::prefix('v2')->name('api.v2.')->middleware(['check.banned'])->group(function () {
+    Route::post('/verify-transaction', [V2Controller::class, 'verifyTransaction'])->name('verify');
+    Route::get('/network-status', [V2Controller::class, 'networkStatus'])->name('status');
+    Route::get('/app-config', [V2Controller::class, 'appConfig'])->name('config');
+});

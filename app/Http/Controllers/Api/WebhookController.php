@@ -31,9 +31,7 @@ use Illuminate\Support\Facades\Log;
  */
 class WebhookController extends Controller
 {
-    public function __construct(private WebhookParser $parser)
-    {
-    }
+    public function __construct(private WebhookParser $parser) {}
 
     /**
      * استقبال إشعار الدفع من Emulator
@@ -55,7 +53,7 @@ class WebhookController extends Controller
         // 3. تحليل النص
         $parsed = $this->parser->parse($rawText);
 
-        if (!$parsed['success']) {
+        if (! $parsed['success']) {
             $rawWebhook->update([
                 'parsed_successfully' => false,
                 'parse_error' => $parsed['error'],
@@ -76,10 +74,36 @@ class WebhookController extends Controller
 
         $rawWebhook->update(['parsed_successfully' => true]);
 
-        // 4. البحث عن العميل المطابق
+        // 4. التحقق من وجود عملية instant-delivery بنفس الـ reference
+        if ($parsed['reference']) {
+            $pendingTx = Transaction::where('jeeb_reference', $parsed['reference'])
+                ->where('verification_status', Transaction::VERIFICATION_PENDING)
+                ->first();
+
+            if ($pendingTx) {
+                $pendingTx->update([
+                    'verification_status' => Transaction::VERIFICATION_VERIFIED,
+                    'raw_webhook_id' => $rawWebhook->id,
+                ]);
+
+                Log::info('Webhook verified instant-delivery transaction', [
+                    'transaction_id' => $pendingTx->id,
+                    'reference' => $parsed['reference'],
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم تأكيد الدفع واستقرار الكرت.',
+                    'verified' => true,
+                    'transaction_id' => $pendingTx->id,
+                ]);
+            }
+        }
+
+        // 5. البحث عن العميل المطابق
         $user = User::findByMatch($parsed['full_name'], $parsed['phone']);
 
-        if (!$user) {
+        if (! $user) {
             // ⚠️ لم يُطابق — يُنشأ كعملية يدوية معلقة
             $this->createManualPendingTransaction($parsed, $rawWebhook);
 
@@ -100,14 +124,14 @@ class WebhookController extends Controller
             ->first();
 
         // إذا لم توجد عملية معلقة، نبحث عن أحدث عملية pending بدون ربط
-        if (!$transaction) {
+        if (! $transaction) {
             $transaction = Transaction::where('user_id', $user->id)
                 ->where('status', Transaction::STATUS_PENDING_MATCH)
                 ->latest()
                 ->first();
         }
 
-        if (!$transaction) {
+        if (! $transaction) {
             // ⚠️ العميل مسجّل لكن لا يوجد طلب شراء منه
             // → يُنشأ transaction مرتبطة بالعميل، يختار الأدمن الباقة
             $transaction = Transaction::create([
@@ -200,7 +224,7 @@ class WebhookController extends Controller
      */
     private function guessProfileByAmount(?float $amount): ?Profile
     {
-        if (!$amount) {
+        if (! $amount) {
             return null;
         }
 
