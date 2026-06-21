@@ -29,7 +29,6 @@ class VoucherController extends Controller
             ->whereNotNull('mikrotik_username')
             ->get()->map(fn ($t) => [
                 'username' => $t->mikrotik_username,
-                'password' => $t->mikrotik_password,
                 'profile' => $t->profile?->name,
             ]);
 
@@ -43,7 +42,6 @@ class VoucherController extends Controller
             ->whereNotNull('mikrotik_username')
             ->get()->map(fn ($t) => [
                 'username' => $t->mikrotik_username,
-                'password' => $t->mikrotik_password,
                 'profile' => $t->profile?->name,
             ]);
 

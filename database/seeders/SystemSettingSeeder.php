@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\SystemSetting;
+use App\Models\VoucherTheme;
 use Illuminate\Database\Seeder;
 
 class SystemSettingSeeder extends Seeder

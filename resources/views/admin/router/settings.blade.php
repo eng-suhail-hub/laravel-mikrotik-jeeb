@@ -3,89 +3,116 @@
 @section('title', 'إعدادات الراوتر')
 
 @section('content')
-<h2 class="mb-4"><i class="bi bi-router"></i> إعدادات الراوتر (MikroTik v6)</h2>
+<div class="page-header">
+    <h2><i class="bi bi-router" style="color:var(--accent)"></i> إعدادات الراوتر</h2>
+    <p>إعدادات الاتصال بمخدم MikroTik v6 عبر API</p>
+</div>
 
 @if($setting->is_connected && $setting->routeros_version)
-    <div class="alert alert-success">
-        <h5><i class="bi bi-check-circle-fill"></i> الراوتر متصل</h5>
-        <hr>
-        <div class="row">
-            <div class="col-md-4"><strong>الهوية:</strong> {{ $setting->router_identity }}</div>
-            <div class="col-md-4"><strong>الإصدار:</strong> {{ $setting->routeros_version }}</div>
-            <div class="col-md-4"><strong>اللوحة:</strong> {{ $setting->board_name }}</div>
+    <div class="alert-m alert-m-success mb-4 anim-fade-in">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>
+            <strong style="font-size:15px;">الراوتر متصل</strong>
+            <div class="mt-2" style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;">
+                <span><strong>الهوية:</strong> {{ $setting->router_identity }}</span>
+                <span><strong>الإصدار:</strong> {{ $setting->routeros_version }}</span>
+                <span><strong>اللوحة:</strong> {{ $setting->board_name }}</span>
+            </div>
+            <div style="margin-top:4px;font-size:12px;opacity:0.7;">
+                <i class="bi bi-clock"></i> آخر اختبار: {{ $setting->last_test_at?->diffForHumans() }}
+            </div>
         </div>
-        <small class="text-muted">آخر اختبار: {{ $setting->last_test_at?->diffForHumans() }}</small>
     </div>
 @elseif($setting->host !== '0.0.0.0')
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle"></i>
-        البيانات محفوظة لكن الاتصال غير ناجح. أعد اختبار الاتصال.
+    <div class="alert-m alert-m-warning mb-4 anim-fade-in">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>البيانات محفوظة لكن الاتصال غير ناجح. يرجى إعادة اختبار الاتصال.</span>
     </div>
 @endif
 
 @if($errors->has('connection'))
-    <div class="alert alert-danger">
-        <strong>فشل الاتصال:</strong> {{ $errors->first('connection') }}
+    <div class="alert-m alert-m-danger mb-4 anim-fade-in">
+        <i class="bi bi-x-circle-fill"></i>
+        <span><strong>فشل الاتصال:</strong> {{ $errors->first('connection') }}</span>
     </div>
 @endif
 
-<div class="card">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">بيانات الاتصال</h5>
-        <small class="text-muted">أدخل بيانات المايكروتك لاختبار الاتصال وحفظ الإعدادات</small>
+<div class="card anim-fade-in">
+    <div class="card-header">
+        <i class="bi bi-wifi" style="color:var(--accent)"></i>
+        بيانات الاتصال
+        <span style="margin-right:auto;font-size:12px;color:var(--muted);font-weight:400;">أدخل بيانات المايكروتك لاختبار الاتصال</span>
     </div>
     <div class="card-body">
         <form id="routerForm" method="POST" action="{{ route('admin.router.connect') }}">
             @csrf
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">عنوان IP <span class="text-danger">*</span></label>
-                    <input type="text" name="host" class="form-control" required
+                    <label class="form-label" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">
+                        عنوان IP <span style="color:var(--m-red);">*</span>
+                    </label>
+                    <input type="text" name="host" class="form-control-m" required
                            placeholder="192.168.88.1"
                            value="{{ old('host', $setting->host) }}">
-                    <small class="text-muted">مثال: 192.168.88.1</small>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">المنفذ <span class="text-danger">*</span></label>
-                    <input type="number" name="port" class="form-control" required min="1" max="65535"
+                    <label class="form-label" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">
+                        المنفذ <span style="color:var(--m-red);">*</span>
+                    </label>
+                    <input type="number" name="port" class="form-control-m" required min="1" max="65535"
                            value="{{ old('port', $setting->port ?? 8728) }}">
-                    <small class="text-muted">8728 افتراضياً</small>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
-                    <input type="text" name="username" class="form-control" required
+                    <label class="form-label" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">
+                        اسم المستخدم <span style="color:var(--m-red);">*</span>
+                    </label>
+                    <input type="text" name="username" class="form-control-m" required
                            value="{{ old('username', $setting->username) }}">
                 </div>
-                <div class="col-md-12">
-                    <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
-                    <input type="password" name="password" class="form-control" required
+                <div class="col-12">
+                    <label class="form-label" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">
+                        كلمة المرور <span style="color:var(--m-red);">*</span>
+                    </label>
+                    <input type="password" name="password" class="form-control-m" required
                            placeholder="{{ $setting->password ? '•••••••• (محفوظة)' : 'أدخل كلمة مرور الراوتر' }}">
-                    <small class="text-muted">⚠️ تُحفظ مُشفّرة في قاعدة البيانات</small>
+                    <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                        <i class="bi bi-shield-lock"></i> تُحفظ مُشفّرة في قاعدة البيانات
+                    </div>
                 </div>
             </div>
 
             <div class="mt-4 d-flex gap-2">
-                <button type="button" id="btnTest" class="btn btn-outline-primary">
+                <button type="button" id="btnTest" class="btn-m btn-m-outline">
                     <i class="bi bi-wifi"></i> اختبار الاتصال فقط
                 </button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn-m btn-m-primary">
                     <i class="bi bi-save"></i> حفظ + اختبار + تفعيل
                 </button>
             </div>
         </form>
 
-        {{-- نتيجة الاختبار (AJAX) --}}
         <div id="testResult" class="mt-3" style="display:none"></div>
     </div>
 </div>
 
-<div class="card mt-3">
+<div class="card mt-3 anim-fade-in">
+    <div class="card-header">
+        <i class="bi bi-info-circle" style="color:var(--accent)"></i>
+        ملاحظات هامة
+    </div>
     <div class="card-body">
-        <h6><i class="bi bi-info-circle"></i> ملاحظات هامة</h6>
-        <ul class="mb-0 small text-muted">
-            <li>الاتصال عبر منفذ <strong>8728</strong> (RouterOS API v6) — تأكد من تفعيله في الراوتر عبر WinBox: <code>IP → Services → api</code></li>
-            <li>كلمة المرور تُحفظ مُشفّرة (Laravel encrypted cast) ولا تظهر في الواجهة مرة أخرى</li>
-            <li>بعد نجاح الاتصال، يصبح النظام جاهزاً لتوليد الكروت</li>
+        <ul class="mb-0" style="font-size:13px;color:var(--muted);padding-right:16px;">
+            <li style="margin-bottom:6px;">
+                الاتصال عبر منفذ <strong style="color:var(--fg);">8728</strong>
+                (RouterOS API v6) — تأكد من تفعيله في الراوتر عبر WinBox:
+                <span class="code-m">IP → Services → api</span>
+            </li>
+            <li style="margin-bottom:6px;">
+                كلمة المرور تُحفظ مُشفّرة (Laravel encrypted cast) ولا تظهر في الواجهة مرة أخرى
+            </li>
+            <li>
+                بعد نجاح الاتصال، يصبح النظام جاهزاً لتوليد الكروت
+            </li>
         </ul>
     </div>
 </div>
@@ -99,14 +126,17 @@ document.getElementById('btnTest').addEventListener('click', async () => {
     const resultBox = document.getElementById('testResult');
 
     resultBox.style.display = 'block';
-    resultBox.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> جاري الاختبار...</div>';
+    resultBox.innerHTML =
+        '<div class="alert-m alert-m-info" style="margin:0;">' +
+        '<i class="bi bi-hourglass-split"></i> جاري الاختبار...</div>';
 
     try {
         const response = await fetch('{{ route("admin.router.test") }}', {
             method: 'POST',
             body: formData,
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ||
+                    '{{ csrf_token() }}',
                 'Accept': 'application/json',
             },
         });
@@ -114,19 +144,24 @@ document.getElementById('btnTest').addEventListener('click', async () => {
 
         if (data.success) {
             resultBox.innerHTML = `
-                <div class="alert alert-success">
-                    <h6><i class="bi bi-check-circle-fill"></i> نجح الاتصال!</h6>
-                    <ul class="mb-0">
-                        <li><strong>الهوية:</strong> ${data.info.identity}</li>
-                        <li><strong>الإصدار:</strong> ${data.info.version}</li>
-                        <li><strong>اللوحة:</strong> ${data.info.board}</li>
-                    </ul>
+                <div class="alert-m alert-m-success" style="margin:0;">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div>
+                        <strong>نجح الاتصال!</strong>
+                        <div style="margin-top:6px;display:flex;gap:16px;font-size:13px;flex-wrap:wrap;">
+                            <span><strong>الهوية:</strong> ${data.info.identity}</span>
+                            <span><strong>الإصدار:</strong> ${data.info.version}</span>
+                            <span><strong>اللوحة:</strong> ${data.info.board}</span>
+                        </div>
+                    </div>
                 </div>`;
         } else {
-            resultBox.innerHTML = `<div class="alert alert-danger"><strong>فشل:</strong> ${data.error}</div>`;
+            resultBox.innerHTML =
+                `<div class="alert-m alert-m-danger" style="margin:0;"><i class="bi bi-x-circle-fill"></i> <strong>فشل:</strong> ${data.error}</div>`;
         }
     } catch (err) {
-        resultBox.innerHTML = `<div class="alert alert-danger">خطأ في الشبكة: ${err.message}</div>`;
+        resultBox.innerHTML =
+            `<div class="alert-m alert-m-danger" style="margin:0;"><i class="bi bi-x-circle-fill"></i> خطأ في الشبكة: ${err.message}</div>`;
     }
 });
 </script>

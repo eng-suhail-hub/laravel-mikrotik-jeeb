@@ -29,6 +29,8 @@ class MikroTikService
 
     private bool $lockAcquired = false;
 
+    private mixed $lock = null;
+
     /**
      * الاتصال بالراوتر مع استخدام Lock
      *
@@ -51,9 +53,9 @@ class MikroTikService
         $lockKey = config('mikrotik.queue_lock_key', 'mikrotik_connection_lock');
         $lockTtl = config('mikrotik.queue_lock_ttl', 30);
 
-        $lock = Cache::lock($lockKey, $lockTtl);
+        $this->lock = Cache::lock($lockKey, $lockTtl);
 
-        $this->lockAcquired = $lock->get();
+        $this->lockAcquired = $this->lock->get();
 
         if (! $this->lockAcquired) {
             throw new \RuntimeException(
@@ -112,13 +114,14 @@ class MikroTikService
      */
     private function releaseLock(): void
     {
-        if ($this->lockAcquired) {
+        if ($this->lockAcquired && $this->lock !== null) {
             try {
-                Cache::lock(config('mikrotik.queue_lock_key', 'mikrotik_connection_lock'))->release();
+                $this->lock->release();
             } catch (Throwable $e) {
                 // تجاهل أخطاء التحرير
             }
             $this->lockAcquired = false;
+            $this->lock = null;
         }
     }
 
@@ -146,7 +149,7 @@ class MikroTikService
             $this->client->query($addQuery)->read();
 
             // ⚠️ التصحيح 2: في User Manager v6، المعامل الصحيح هو "numbers" وليس "user" لتحديد الحساب
-            $profileQuery = (new Query('/tool/user-manager/user/create-and-use-profile'))
+            $profileQuery = (new Query('/tool/user-manager/user/create-and-activate-profile'))
                 ->equal('customer', 'admin')
                 ->equal('numbers', $username)
                 ->equal('profile', $mikrotikProfileName);

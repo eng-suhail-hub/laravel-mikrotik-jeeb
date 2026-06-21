@@ -115,13 +115,12 @@ class CardGeneratorService
             $charset = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
         }
 
-        $username = $this->randomString($usernameLength, $charset);
-        $password = $mode === 'match'
-            ? $username
-            : $this->randomString($passwordLength, $charset);
-
+        $base = $this->randomString($usernameLength, $charset);
+        // Apply prefix and enforce lowercase for both username and password when matching
+        $username = strtolower($prefix . $base);
+        $password = ($mode === 'match' || ($config['username_as_password'] ?? false)) ? $username : strtolower($this->randomString($passwordLength, $charset));
         return [
-            'username' => $prefix.$username,
+            'username' => $username,
             'password' => $password,
         ];
     }

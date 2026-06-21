@@ -24,8 +24,7 @@
         <h3>{{ $network_name ?? 'شبكتي' }}</h3>
         <div class="label">اسم المستخدم</div>
         <div class="cred">{{ $card['username'] }}</div>
-        <div class="label">كلمة المرور</div>
-        <div class="cred">{{ $card['password'] }}</div>
+
         <div class="profile">{{ $card['profile'] }}</div>
         @if(!empty($card['expires_at']))
         <div class="profile">صالح حتى: {{ $card['expires_at'] }}</div>
