@@ -1,11 +1,16 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\BatchGenerationController;
 use App\Http\Controllers\Admin\ChallengeController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\MaintenanceController;
+use App\Http\Controllers\Admin\PointsController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RouterController;
+use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\VoucherController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,6 +56,39 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
         Route::post('/{transaction}/activate', [TransactionController::class, 'manualActivate'])->name('activate');
         Route::post('/{transaction}/assign-profile', [TransactionController::class, 'assignProfile'])->name('assignProfile');
         Route::post('/{transaction}/retry', [TransactionController::class, 'retry'])->name('retry');
+    });
+
+    // V2: إدارة النقاط
+    Route::prefix('points')->name('points.')->group(function () {
+        Route::get('/', [PointsController::class, 'index'])->name('index');
+        Route::get('/transactions', [PointsController::class, 'transactions'])->name('transactions');
+        Route::post('/adjust/{user}', [PointsController::class, 'adjust'])->name('adjust');
+    });
+
+    // V2: التوليد الجماعي
+    Route::prefix('batch-generations')->name('batch.')->group(function () {
+        Route::get('/', [BatchGenerationController::class, 'index'])->name('index');
+        Route::post('/generate', [BatchGenerationController::class, 'generate'])->name('generate');
+        Route::get('/{id}/progress', [BatchGenerationController::class, 'progress'])->name('progress');
+    });
+
+    // V2: طباعة القسائم
+    Route::prefix('vouchers')->name('vouchers.')->group(function () {
+        Route::get('/', [VoucherController::class, 'index'])->name('index');
+        Route::post('/preview', [VoucherController::class, 'preview'])->name('preview');
+        Route::post('/print', [VoucherController::class, 'print'])->name('print');
+    });
+
+    // V2: صيانة الراوتر
+    Route::prefix('maintenance')->name('maintenance.')->group(function () {
+        Route::get('/', [MaintenanceController::class, 'index'])->name('index');
+        Route::post('/{action}', [MaintenanceController::class, 'execute'])->name('execute');
+    });
+
+    // V2: إعدادات النظام
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', [SystemSettingController::class, 'index'])->name('index');
+        Route::put('/', [SystemSettingController::class, 'update'])->name('update');
     });
 });
 

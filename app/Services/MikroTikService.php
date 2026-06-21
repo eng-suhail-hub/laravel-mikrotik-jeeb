@@ -352,9 +352,38 @@ class MikroTikService
         return $value; // إعادة القيمة كما هي إذا كانت نصية
     }
 
-    /**
-     * إرجاع كائن الاتصال الحالي
-     */
+    public function removeUser(string $username): bool
+    {
+        if ($this->client === null) {
+            $this->connect();
+        }
+
+        $query = (new Query('/tool/user-manager/user/remove'))
+            ->equal('numbers', $username);
+
+        $this->client->query($query)->read();
+
+        return true;
+    }
+
+    public function executeMaintenance(string $action): array
+    {
+        if ($this->client === null) {
+            $this->connect();
+        }
+
+        $path = match ($action) {
+            'backup_db' => '/tool/user-manager/database/backup',
+            'clear_logs' => '/tool/user-manager/database/clear-logs',
+            'rebuild_db' => '/tool/user-manager/database/rebuild',
+            default => throw new \InvalidArgumentException("Unknown action: {$action}"),
+        };
+
+        $response = $this->client->query($path)->read();
+
+        return ['output' => json_encode($response)];
+    }
+
     public function getClient(): ?Client
     {
         return $this->client;
