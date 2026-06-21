@@ -46,6 +46,25 @@
                 <i class="bi bi-list-check"></i> كل العمليات
             </a>
             <hr class="text-light">
+            <a href="{{ route('admin.points.index') }}" class="{{ request()->routeIs('admin.points.*') ? 'active' : '' }}">
+                <i class="bi bi-coin"></i> إدارة النقاط
+            </a>
+            <a href="{{ route('admin.challenges.index') }}" class="{{ request()->routeIs('admin.challenges.*') ? 'active' : '' }}">
+                <i class="bi bi-trophy"></i> التحديات
+            </a>
+            <a href="{{ route('admin.batch.index') }}" class="{{ request()->routeIs('admin.batch.*') ? 'active' : '' }}">
+                <i class="bi bi-layers"></i> التوليد الجماعي
+            </a>
+            <a href="{{ route('admin.vouchers.index') }}" class="{{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">
+                <i class="bi bi-printer"></i> طباعة القسائم
+            </a>
+            <a href="{{ route('admin.maintenance.index') }}" class="{{ request()->routeIs('admin.maintenance.*') ? 'active' : '' }}">
+                <i class="bi bi-tools"></i> صيانة الراوتر
+            </a>
+            <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
+                <i class="bi bi-gear"></i> إعدادات النظام
+            </a>
+            <hr class="text-light">
             <div class="px-3 mt-4 text-light">
                 <small>{{ Auth::guard('admin')->user()->full_name ?? Auth::guard('admin')->user()->username }}</small>
                 <form action="{{ route('admin.logout') }}" method="POST" class="mt-2">

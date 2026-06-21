@@ -52,6 +52,44 @@
     </div>
 </div>
 
+{{-- V2: بطاقات إضافية --}}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">إجمالي النقاط</h6>
+                <h4 class="mb-0">{{ number_format($stats['total_points_balance'], 0) }}</h4>
+                <small class="text-muted">{{ $stats['total_users_with_points'] }} مستخدمين</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">سعر النقطة</h6>
+                <h4 class="mb-0">{{ number_format($stats['point_price'], 0) }}</h4>
+                <small class="text-muted">ريال يمني</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">تحديات نشطة</h6>
+                <h4 class="mb-0">{{ $stats['active_challenges'] }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">عمليات V2 اليوم</h6>
+                <h4 class="mb-0">{{ $stats['v2_transactions_today'] }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3">
     {{-- آخر العمليات --}}
     <div class="col-md-6">
